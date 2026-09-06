@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════
+#  remote — 统一远程访问 CLI
+#
+#  用法: remote <command> [options]
+#
+#  命令:
+#    connect [host]  连接工作站终端（自动选路）
+#    status          健康检查
+#    fix             诊断+修复
+#    forward         端口转发
+#    desktop         远程桌面
+#    code            Web IDE
+#    runner          Runner 管理
+#    setup           首次部署
+#    config          配置管理
+#    --version       版本号
+#    --help          帮助
+# ═══════════════════════════════════════════════════════════════════
+set -uo pipefail
+
+# 定位项目根目录
+REMOTE_CLI_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# 加载所有模块
+source "$REMOTE_CLI_DIR/lib/config.sh"
+source "$REMOTE_CLI_DIR/lib/detect.sh"
+source "$REMOTE_CLI_DIR/lib/connect.sh"
+source "$REMOTE_CLI_DIR/lib/status.sh"
+source "$REMOTE_CLI_DIR/lib/fix.sh"
+source "$REMOTE_CLI_DIR/lib/forward.sh"
+source "$REMOTE_CLI_DIR/lib/runner.sh"
+source "$REMOTE_CLI_DIR/lib/desktop.sh"
+source "$REMOTE_CLI_DIR/lib/code.sh"
+source "$REMOTE_CLI_DIR/lib/setup.sh"
+
+# 初始化配置
+load_config
+
+# ─── 子命令路由 ──────────────────────────────────────────────────
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+    connect|c)      cmd_connect "$@" ;;
+    status|st)      cmd_status "$@" ;;
+    fix)            cmd_fix "$@" ;;
+    forward|fwd)    cmd_forward "$@" ;;
+    desktop|desk)   cmd_desktop "$@" ;;
+    code)           cmd_code "$@" ;;
+    runner|r)       cmd_runner "$@" ;;
+    setup)          cmd_setup "$@" ;;
+    config|cfg)
+        echo "配置文件: $CONFIG_ENV"
+        if [[ -f "$CONFIG_ENV" ]]; then
+            # 显示非敏感配置
+            grep -v "KEY\|PASSWORD\|SECRET\|TOKEN" "$CONFIG_ENV" 2>/dev/null || echo "(空)"
+        else
+            echo "未创建，运行 'remote setup' 初始化"
+        fi
+        ;;
+    --version|-v)   echo "remote-cli $REMOTE_CLI_VERSION" ;;
+    --help|-h|help) echo "用法: remote <command> [options]" ;;
+    *)              echo "未知命令: $cmd (运行 remote --help)" ;;
+esac

@@ -1,0 +1,15 @@
+# 敏感配置
+config.env
+*.env.local
+
+# 运行时
+*.log
+*.tmp
+*.bak
+*.bak.*
+
+# 备份
+backups/
+
+# OS
+.DS_Store
