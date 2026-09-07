@@ -1,21 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
 #  remote — 统一远程访问 CLI
-#
-#  用法: remote <command> [options]
-#
-#  命令:
-#    connect [host]   连接工作站终端（自动选路）
-#    status           健康检查
-#    fix              诊断+修复
-#    forward          端口转发
-#    desktop          远程桌面
-#    code             Web IDE
-#    runner           Runner 管理
-#    config           配置管理
-#    update           自更新
-#    --version        版本号
-#    --help           帮助
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
 
@@ -27,7 +12,7 @@ source "$REMOTE_CLI_DIR/lib/common.sh"
 source "$REMOTE_CLI_DIR/lib/config.sh"
 load_config
 
-# ─── 功能模块惰性加载（按需 source）────────────────────────────
+# ─── 功能模块惰性加载 ──────────────────────────────────────────
 declare -A _CMD_MODULES=(
     [connect]="detect.sh connect.sh"
     [c]="detect.sh connect.sh"
@@ -36,15 +21,17 @@ declare -A _CMD_MODULES=(
     [fix]="detect.sh fix.sh"
     [forward]="detect.sh forward.sh"
     [fwd]="detect.sh forward.sh"
+    [files]="detect.sh files.sh"
     [desktop]="detect.sh desktop.sh"
     [desk]="detect.sh desktop.sh"
     [code]="detect.sh code.sh"
     [runner]="runner.sh"
     [r]="runner.sh"
     [setup]="detect.sh status.sh setup.sh"
+    [update]=""
+    [uninstall]=""
     [config]=""
     [cfg]=""
-    [update]=""
 )
 
 _load_cmd() {
@@ -78,6 +65,10 @@ case "$cmd" in
         _load_cmd forward
         cmd_forward "$@"
         ;;
+    files|f)
+        _load_cmd files
+        cmd_files "$@"
+        ;;
     desktop|desk)
         _load_cmd desktop
         cmd_desktop "$@"
@@ -103,24 +94,25 @@ case "$cmd" in
         fi
         ;;
     update)
-        cmd_update() {
-            if [[ ! -d "$REMOTE_CLI_DIR/.git" ]]; then
-                die "非 git 安装，需手动更新: cd $REMOTE_CLI_DIR && git init"
-            fi
-            info "检查更新..."
-            git -C "$REMOTE_CLI_DIR" fetch --quiet origin 2>/dev/null || { warn "网络错误"; return 1; }
-            local behind
-            behind=$(git -C "$REMOTE_CLI_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo "0")
-            if [[ "${behind:-0}" -eq 0 ]]; then
-                ok "已是最新版本 ($REMOTE_CLI_VERSION)"
-                return 0
-            fi
+        if [[ ! -d "$REMOTE_CLI_DIR/.git" ]]; then
+            die "非 git 安装，需手动更新"
+        fi
+        info "检查更新..."
+        git -C "$REMOTE_CLI_DIR" fetch --quiet origin 2>/dev/null || { warn "网络错误"; exit 1; }
+        local behind
+        behind=$(git -C "$REMOTE_CLI_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo "0")
+        if [[ "${behind:-0}" -eq 0 ]]; then
+            ok "已是最新版本 ($REMOTE_CLI_VERSION)"
+        else
             info "发现 $behind 个新提交"
             if confirm "更新到最新版本？"; then
                 git -C "$REMOTE_CLI_DIR" pull --ff-only && ok "已更新"
             fi
-        }
-        cmd_update
+        fi
+        ;;
+    uninstall)
+        _load_cmd uninstall
+        cmd_uninstall "$@"
         ;;
     --version|-v)
         echo "remote-cli $REMOTE_CLI_VERSION"
@@ -129,32 +121,51 @@ case "$cmd" in
         cat << 'HELP'
 用法: remote <command> [options]
 
-命令:
-  connect [host]   连接工作站终端（自动选路）
-  status           健康检查
-  fix              诊断+修复
-  forward          端口转发
-  desktop          远程桌面
-  code             Web IDE
-  runner           Runner 管理
-  config           配置管理
-  update           自更新
-  --version        版本号
-  --help           帮助
+连接:
+  connect [host]       连接工作站终端（自动选路）
+    --mosh             强制使用 mosh
+    --ssh              强制使用 ssh
+    --dry-run          只显示路径不连接
+
+文件:
+  files push <src> [dst]   上传文件到工作站
+  files pull <src> [dst]   从工作站下载文件
+  files list [path]        远程目录列表
+
+端口转发:
+  forward <port>           转发工作站:port 到 localhost:port
+
+状态:
+  status                   健康检查
+  status --json            JSON 输出
+  fix                      诊断+修复
+  fix --dry-run            只诊断不修复
+
+服务:
+  desktop                  RustDesk 远程桌面
+  code                     code-server Web IDE
+  runner status            Runner 状态
+  runner restart           Runner 重启
+  runner logs [service]    Runner 日志
+
+管理:
+  config                   查看配置
+  update                   自更新
+  uninstall                卸载
+  --version                版本号
 
 示例:
   remote connect              # 自动选路连接
-  remote connect --dry-run    # 只显示路径不连接
-  remote status               # 查看所有服务状态
-  remote status --json        # JSON 输出
-  remote fix --auto           # 自动修复
-  remote forward 8188         # 端口转发
-  remote runner status        # Runner 状态
-  remote runner restart       # Runner 重启
+  remote connect --dry-run    # 只显示路径
+  remote files push ./file.txt  # 上传文件
+  remote files pull /remote/file.txt ./local.txt  # 下载文件
+  remote forward 8188         # 转发 ComfyUI 端口
+  remote status --json        # JSON 格式状态
 HELP
         ;;
     *)
-        error "未知命令: $cmd (运行 remote --help)"
+        error "未知命令: $cmd"
+        echo "运行 remote --help 查看可用命令"
         exit 1
         ;;
 esac

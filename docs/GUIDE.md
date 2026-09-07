@@ -11,7 +11,11 @@ remote status           # 查看所有服务状态
 remote connect          # 连接工作站
 remote desktop          # 远程桌面
 remote code             # Web IDE
+remote files push <file>  # 上传文件
+remote files pull <file>  # 下载文件
+remote forward 8188     # 端口转发
 remote fix              # 诊断修复
+remote --help           # 查看所有命令
 ```
 
 ---
@@ -32,9 +36,18 @@ remote fix              # 诊断修复
 
 安装后用 **同一个账号** 登录（GitHub/Google/SSO 均可）。
 
-登录后在 Tailscale 控制台能看到所有设备，自动组网。
+### 步骤 2：安装 remote-cli（其他设备）
 
-### 步骤 2：选择访问方式
+```bash
+# Linux/macOS
+git clone <repo-url> ~/.local/remote-cli
+export PATH="$HOME/.local/remote-cli/bin:$PATH"
+
+# 或直接下载
+curl -fsSL <repo-url>/setup/install.sh | bash
+```
+
+### 步骤 3：选择访问方式
 
 | 我要... | 方式 | 命令/操作 |
 |---|---|---|
@@ -42,7 +55,8 @@ remote fix              # 诊断修复
 | **写代码** | VS Code Remote SSH | VS Code → Remote-SSH → Connect to Host |
 | **看 GUI 界面** | RustDesk | 安装 RustDesk → 设置中继 → 输入 ID |
 | **浏览器写代码** | code-server | 浏览器打开 `http://100.86.106.59:8080` |
-| **端口转发** | SSH 隧道 | `ssh -L 8188:localhost:8188 hector@100.86.106.59` |
+| **端口转发** | SSH 隧道 | `remote forward 8188` |
+| **文件传输** | remote files | `remote files push/pull` |
 | **手机操作** | Tailscale + Termius | Termius → 新建 Host → `100.86.106.59:22` |
 
 ---
@@ -80,7 +94,7 @@ remote fix              # 诊断修复
 | 字段 | 值 |
 |---|---|
 | ID 服务器 | `14.103.46.178` |
-| Key | `YiZCzMo+R3uO2p062yahrQrz4Oc08aqTtBQE1MqOPz4=` |
+| Key | `见 ~/.config/remote-cli/config.env` |
 
 4. 回到主界面，在 **远程桌面** 输入框输入工作站的 RustDesk ID
 5. 点击连接，输入一次性密码
@@ -111,13 +125,6 @@ Mosh 基于 UDP，WiFi 切换、合盖再开都不会断连。
 ### VS Code Remote SSH
 
 同 Windows 步骤。
-
-### iTerm2 + tmux
-
-```bash
-# SSH 后自动 attach zellij
-ssh hector@100.86.106.59 -t "zellij attach --create dev"
-```
 
 ---
 
@@ -150,14 +157,29 @@ ssh hector@100.86.106.59 -t "zellij attach --create dev"
 
 ---
 
-## 六、端口转发（访问工作站本地服务）
+## 六、文件传输
+
+```bash
+# 上传文件到工作站
+remote files push ./local-file.txt /home/hector/remote-file.txt
+
+# 从工作站下载文件
+remote files pull /home/hector/data.csv ./local-data.csv
+
+# 列出远程目录
+remote files list /home/hector/projects
+```
+
+底层优先使用 rsync（加速），不可用时 fallback 到 scp。
+
+---
+
+## 七、端口转发（访问工作站本地服务）
 
 ### 场景：笔记本访问工作站的 ComfyUI (8188)
 
 ```bash
-# 在笔记本终端执行
-ssh -L 8188:localhost:8188 hector@100.86.106.59 -N
-
+remote forward 8188
 # 浏览器打开 http://localhost:8188
 ```
 
@@ -165,52 +187,48 @@ ssh -L 8188:localhost:8188 hector@100.86.106.59 -N
 
 | 服务 | 端口 | 命令 |
 |---|---|---|
-| ComfyUI | 8188 | `ssh -L 8188:localhost:8188 hector@100.86.106.59 -N` |
-| Jupyter | 8888 | `ssh -L 8888:localhost:8888 hector@100.86.106.59 -N` |
-| Ollama | 11434 | `ssh -L 11434:localhost:11434 hector@100.86.106.59 -N` |
-| 多个端口 | 多次执行 | 每个端口单独一条命令 |
+| ComfyUI | 8188 | `remote forward 8188` |
+| Jupyter | 8888 | `remote forward 8888` |
+| Ollama | 11434 | `remote forward 11434` |
 
 ---
 
-## 七、故障排查
+## 八、故障排查
 
 ### 连不上 Tailscale
 
 ```bash
-# 检查 Tailscale 状态
-tailscale status
-
-# 重新登录
-sudo tailscale logout
-sudo tailscale up
+tailscale status              # 检查状态
+sudo tailscale logout && sudo tailscale up  # 重新登录
 ```
 
 ### SSH 连不上
 
 ```bash
-# 工作站上检查
-systemctl status ssh
-ss -tlnp | grep :22
+remote status                 # 查看所有服务状态
+remote fix --dry-run          # 诊断问题
+remote fix                    # 修复
 ```
 
 ### RustDesk 连不上
 
-1. 确认中继服务器填写正确：`14.103.46.178`
-2. 确认 Key 填写正确：`YiZCzMo+R3uO2p062yahrQrz4Oc08aqTtBQE1MqOPz4=`
-3. 检查 Runner 中继是否运行：`remote runner status`
+```bash
+remote runner status          # 检查 Runner 中继
+remote runner restart         # 重启 Runner 容器
+```
 
-### code-server 打不开
+### 诊断所有问题
 
 ```bash
-# 工作站上检查
-systemctl status snap.code-server.daemon
-# 或
-systemctl status code-server@hector
+remote status                 # 人类可读表格
+remote status --json          # JSON 格式（供脚本消费）
+remote fix --dry-run          # 只诊断不修复
+remote fix                    # 交互式修复
 ```
 
 ---
 
-## 八、安全注意事项
+## 九、安全注意事项
 
 | 项目 | 说明 |
 |---|---|
@@ -218,19 +236,28 @@ systemctl status code-server@hector
 | **Tailscale 加密** | 所有流量 WireGuard 加密，P2P 直连 |
 | **RustDesk 中继** | 自建中继，数据不经第三方 |
 | **config.env** | 敏感配置在 `~/.config/remote-cli/config.env`，不入 git |
+| **密钥管理** | 不在文档/脚本中明文存储密钥 |
 
 ---
 
-## 九、快速参考
+## 十、快速参考
 
 | 命令 | 说明 |
 |---|---|
 | `remote status` | 健康检查 |
+| `remote status --json` | JSON 格式状态 |
 | `remote connect` | 自动连接 |
+| `remote connect --dry-run` | 只显示路径 |
 | `remote desktop` | RustDesk |
 | `remote code` | Web IDE URL |
-| `remote forward 8188` | 端口转发 |
+| `remote files push <file>` | 上传文件 |
+| `remote files pull <file>` | 下载文件 |
+| `remote files list` | 远程目录 |
+| `remote forward <port>` | 端口转发 |
 | `remote fix` | 诊断+修复 |
+| `remote fix --dry-run` | 只诊断 |
 | `remote runner status` | Runner 状态 |
-| `remote runner logs hbbs` | RustDesk 中继日志 |
+| `remote runner restart` | Runner 重启 |
+| `remote config` | 查看配置 |
+| `remote update` | 自更新 |
 | `remote --version` | 版本号 |
