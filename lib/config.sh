@@ -57,7 +57,7 @@ _migrate_config() {
     [[ -f "$CONFIG_ENV" ]] && cp "$CONFIG_ENV" "$CONFIG_ENV.bak.${from}"
 
     # 增量追加缺失字段
-    _append_if_missing "CONFIG_VERSION" "\"$to\""
+    _append_if_missing "CONFIG_VERSION" "$to"
 
     ok "配置已迁移到 v${to}"
 }
@@ -76,14 +76,16 @@ init_config() {
     if [[ ! -f "$CONFIG_ENV" ]]; then
         cat > "$CONFIG_ENV" << 'EOF'
 # remote-cli 敏感配置（不要提交到 git）
-CONFIG_VERSION=1
-REMOTE_HOST=""
-REMOTE_USER="hector"
-RUNNER_IP=""
-RUNNER_USER="root"
-RUNNER_KEY="~/.ssh/neorun.pem"
-RUSTDESK_KEY=""
-CODE_SERVER_PORT=8080
+# ─── 远程工作站 ──────────────────────────
+REMOTE_HOST=""                    # 工作站 Tailscale IP 或局域网 IP
+REMOTE_USER="hector"              # SSH 用户名
+# ─── Runner 中继服务器 ──────────────────
+RUNNER_IP=""                      # Runner 公网 IP（用于 RustDesk 中继）
+RUNNER_USER="root"                # Runner SSH 用户名
+RUNNER_KEY="~/.ssh/neorun.pem"    # Runner SSH 私钥路径
+RUSTDESK_KEY=""                   # RustDesk 中继公钥
+# ─── 服务配置 ──────────────────────────
+CODE_SERVER_PORT=8080             # code-server 端口
 EOF
         chmod 600 "$CONFIG_ENV"
     fi

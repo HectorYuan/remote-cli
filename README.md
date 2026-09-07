@@ -1,75 +1,85 @@
 # remote-cli
 
-统一远程访问 CLI，一个命令连接工作站。
+统一远程访问 CLI — 一个命令连接工作站。
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.2.2-blue.svg)](VERSION)
 
 ## Quick Start
 
 ```bash
-remote status           # 健康检查
-remote connect          # 连接终端
-remote desktop          # 远程桌面
-remote code             # Web IDE
-remote forward 8188     # 端口转发
-remote fix              # 诊断修复
-remote runner status    # Runner 管理
+# Linux / macOS / WSL
+curl -fsSL https://raw.githubusercontent.com/HectorYuan/remote-cli/main/setup/install.sh | bash
+
+# Windows PowerShell
+irm https://raw.githubusercontent.com/HectorYuan/remote-cli/main/setup/install.ps1 | iex
 ```
 
-## 安装
+## 使用
 
 ```bash
-# 加入 PATH（已自动添加到 bashrc.d.sh）
-export PATH="$HOME/DevSpace/remote-cli/bin:$PATH"
+remote setup           # 首次配置
+remote status          # 健康检查
+remote connect         # 连接工作站
+remote files push <f>  # 上传文件
+remote files pull <f>  # 下载文件
+remote forward 8188    # 端口转发
+remote desktop         # RustDesk 远程桌面
+remote fix             # 诊断修复
+remote --help          # 查看所有命令
 ```
 
-## 首次使用
+## 支持平台
 
-```bash
-remote setup            # 初始化配置
-remote fix --dry-run    # 查看需要修复的问题
-remote fix              # 执行修复
-remote status           # 确认所有服务就绪
-```
+| 平台 | 安装方式 | CLI 版本 |
+|---|---|---|
+| Linux | `curl ... \| bash` | bash |
+| macOS | `curl ... \| bash` | bash |
+| WSL | 自动检测 | bash |
+| Windows | `irm ... \| iex` | PowerShell |
 
-## 需要 sudo 的操作
+## 功能
 
-以下操作需要 `sudo` 权限，已生成脚本：
-
-```bash
-sudo bash /tmp/p0-fix.sh
-```
-
-内容包括：
-1. 启动 sshd 服务
-2. 创建 `/etc/ssh/sshd_config.d/hardened.conf`（禁用密码登录）
-3. 创建 `~/.config/remote-cli/config.env`
-4. 修复 code-server 绑定
+| 命令 | 说明 |
+|---|---|
+| `remote connect` | 自动选路连接（Tailscale > LAN），支持 --mosh/--ssh/--dry-run |
+| `remote status` | 健康检查 + --json 输出 + --deps 依赖检测 |
+| `remote fix` | 5 项诊断 + 幂等修复，支持 --dry-run/--auto/--backup |
+| `remote files push/pull/list` | 文件传输（rsync 优先 + scp fallback） |
+| `remote forward <port>` | SSH 端口转发 |
+| `remote desktop` | RustDesk 远程桌面 |
+| `remote code` | code-server Web IDE |
+| `remote runner` | Runner 中继管理（status/restart/logs/ssh） |
+| `remote config` | 查看配置 |
+| `remote update` | 自更新（git pull） |
+| `remote uninstall` | 安全卸载 |
 
 ## 架构
 
 ```
 remote CLI
   ├── L1: Tailscale P2P (100.x.x.x)  ← 首选
-  ├── L2: 局域网 (172.16.138.50)       ← 同网络
-  └── L3: Runner 中继 (14.103.46.178)  ← RustDesk fallback
+  ├── L2: 局域网 (172.x.x.x)          ← 同网络
+  └── L3: Runner 中继 (公网 IP)        ← RustDesk fallback
 ```
 
-## 项目结构
+## 安全
 
-```
-bin/remote          # 主入口
-lib/
-  config.sh         # 配置管理
-  detect.sh         # 状态检测
-  connect.sh        # 连接逻辑
-  status.sh         # 健康检查
-  fix.sh            # 诊断修复
-  forward.sh        # 端口转发
-  runner.sh         # Runner 管理
-  desktop.sh        # RustDesk
-  code.sh           # code-server
-  setup.sh          # 首次部署
+- SSH 仅允许密钥认证（密码已禁用）
+- 所有流量经 Tailscale WireGuard 加密
+- RustDesk 使用自建中继，数据不经第三方
+- 敏感配置在 `~/.config/remote-cli/config.env`，不入 git
+- 所有修复操作幂等（可安全重复执行）
+
+## 开发
+
+```bash
+git clone https://github.com/HectorYuan/remote-cli.git
+cd remote-cli
+bin/remote --version
+bash tests/smoke.sh
 ```
 
 ## License
 
-MIT
+[MIT](LICENSE)

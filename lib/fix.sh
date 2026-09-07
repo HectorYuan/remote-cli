@@ -136,6 +136,10 @@ cmd_fix() {
         fi
     done
 
+    # ─── sudo 可用性检测 ────────────────────────────────────────
+    local _has_sudo=0
+    sudo -n true 2>/dev/null && _has_sudo=1
+
     # ─── 输出诊断 ─────────────────────────────────────────────
     if [[ ${#issues[@]} -eq 0 ]]; then
         ok "未发现问题"
@@ -164,6 +168,10 @@ cmd_fix() {
 
     for i in "${!fix_funcs[@]}"; do
         echo ""
+        if [[ "${need_sudo[$i]}" == "yes" ]] && [[ "$_has_sudo" -ne 1 ]]; then
+            warn "需要 sudo 权限，跳过: ${issues[$i]}"
+            continue
+        fi
         info "修复: ${issues[$i]}"
         "${fix_funcs[$i]}" 2>&1 || warn "修复失败: ${issues[$i]}"
     done

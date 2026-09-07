@@ -75,12 +75,13 @@ detect_runner() {
 }
 
 # ─── 检测依赖安装 ─────────────────────────────────────────────
+# 接口约定: 与 detect_* 系列一致，0=已安装/正常，1=未安装/异常
 detect_deps() {
-    _DEPS_SSH=$(command -v ssh &>/dev/null && echo 1 || echo 0)
-    _DEPS_MOSH=$(command -v mosh &>/dev/null && echo 1 || echo 0)
-    _DEPS_TAILSCALE=$(command -v tailscale &>/dev/null && echo 1 || echo 0)
-    _DEPS_RUSTDESK=$(command -v rustdesk &>/dev/null && echo 1 || echo 0)
-    _DEPS_ZELLIJ=$(command -v zellij &>/dev/null && echo 1 || echo 0)
+    command -v ssh &>/dev/null      && _DEPS_SSH=0      || _DEPS_SSH=1
+    command -v mosh &>/dev/null     && _DEPS_MOSH=0     || _DEPS_MOSH=1
+    command -v tailscale &>/dev/null && _DEPS_TAILSCALE=0 || _DEPS_TAILSCALE=1
+    command -v rustdesk &>/dev/null && _DEPS_RUSTDESK=0 || _DEPS_RUSTDESK=1
+    command -v zellij &>/dev/null   && _DEPS_ZELLIJ=0   || _DEPS_ZELLIJ=1
 }
 
 # ─── 汇总所有检测结果 ────────────────────────────────────────

@@ -10,13 +10,23 @@ REMOTE_CLI_DIR="${REMOTE_CLI_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pw
 # ─── 版本号 ────────────────────────────────────────────────────
 REMOTE_CLI_VERSION="$(cat "$REMOTE_CLI_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "dev")"
 
-# ─── 日志（写 stderr）──────────────────────────────────────────
+# ─── 日志（写 stderr，自动检测终端颜色）───────────────────────
 _RC_QUIET="${RC_QUIET:-0}"
-info()  { [[ "$_RC_QUIET" -eq 0 ]] && echo -e "\033[0;36m[INFO]\033[0m  $*" >&2; }
-ok()    { [[ "$_RC_QUIET" -eq 0 ]] && echo -e "\033[0;32m[OK]\033[0m    $*" >&2; }
-warn()  { echo -e "\033[1;33m[WARN]\033[0m  $*" >&2; }
-error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
-die()   { error "$@"; exit 1; }
+_RC_COLOR=0
+[[ -t 2 ]] && _RC_COLOR=1
+
+if [[ "$_RC_COLOR" -eq 1 ]]; then
+    info()  { [[ "$_RC_QUIET" -eq 0 ]] && echo -e "\033[0;36m[INFO]\033[0m  $*" >&2; }
+    ok()    { [[ "$_RC_QUIET" -eq 0 ]] && echo -e "\033[0;32m[OK]\033[0m    $*" >&2; }
+    warn()  { echo -e "\033[1;33m[WARN]\033[0m  $*" >&2; }
+    error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
+else
+    info()  { [[ "$_RC_QUIET" -eq 0 ]] && echo "[INFO]  $*" >&2; }
+    ok()    { [[ "$_RC_QUIET" -eq 0 ]] && echo "[OK]    $*" >&2; }
+    warn()  { echo "[WARN]  $*" >&2; }
+    error() { echo "[ERROR] $*" >&2; }
+fi
+die() { error "$@"; exit 1; }
 
 # ─── 工具函数 ──────────────────────────────────────────────────
 require_cmd() {
@@ -116,13 +126,12 @@ is_service_active() {
 
 enable_service() {
     local service="$1"
-    if command -v systemctl &>/dev/null; then
+    if is_windows; then
+        sc start "$service" 2>/dev/null
+    elif command -v systemctl &>/dev/null; then
         sudo systemctl enable --now "$service" 2>/dev/null
     elif is_macos; then
         brew services start "$service" 2>/dev/null
-    elif is_windows; then
-        sudo systemctl enable --now "$service" 2>/dev/null || \
-        sc start "$service" 2>/dev/null
     else
         return 2
     fi
@@ -132,7 +141,10 @@ enable_service() {
 atomic_write() {
     local target="$1" content="$2"
     local tmp="${target}.tmp.$$"
-    echo "$content" > "$tmp" && mv "$tmp" "$target"
+    printf '%s\n' "$content" > "$tmp" && mv "$tmp" "$target"
+    local rc=$?
+    [[ $rc -ne 0 ]] && rm -f "$tmp"
+    return $rc
 }
 
 ensure_line_in_file() {

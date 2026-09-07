@@ -48,7 +48,9 @@ cmd_connect() {
         echo "  目标: $REMOTE_USER@$target_ip"
         echo "  来源: $target_source"
         echo "  协议: $method"
-        echo "  SSH密钥: $SSH_KEY"
+        local key_type
+        key_type=$(ssh-keygen -l -f "$SSH_KEY" 2>/dev/null | awk '{print $4}' || echo "unknown")
+        echo "  密钥类型: $key_type"
         return 0
     fi
 

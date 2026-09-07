@@ -113,7 +113,7 @@ _status_human() {
 
 _dep_row() {
     local name="$1" installed="$2"
-    if [[ "$installed" -eq 1 ]]; then
+    if [[ "$installed" -eq 0 ]]; then
         printf "%-20s %-12s\n" "$name" "✅ installed"
     else
         printf "%-20s %-12s\n" "$name" "❌ missing"
@@ -147,11 +147,11 @@ _status_json() {
     echo ""
     echo "  },"
     echo "  \"dependencies\": {"
-    echo "    \"ssh\": $([ "$_DEPS_SSH" -eq 1 ] && echo true || echo false),"
-    echo "    \"mosh\": $([ "$_DEPS_MOSH" -eq 1 ] && echo true || echo false),"
-    echo "    \"tailscale\": $([ "$_DEPS_TAILSCALE" -eq 1 ] && echo true || echo false),"
-    echo "    \"rustdesk\": $([ "$_DEPS_RUSTDESK" -eq 1 ] && echo true || echo false),"
-    echo "    \"zellij\": $([ "$_DEPS_ZELLIJ" -eq 1 ] && echo true || echo false)"
+    echo "    \"ssh\": $([ "$_DEPS_SSH" -eq 0 ] && echo true || echo false),"
+    echo "    \"mosh\": $([ "$_DEPS_MOSH" -eq 0 ] && echo true || echo false),"
+    echo "    \"tailscale\": $([ "$_DEPS_TAILSCALE" -eq 0 ] && echo true || echo false),"
+    echo "    \"rustdesk\": $([ "$_DEPS_RUSTDESK" -eq 0 ] && echo true || echo false),"
+    echo "    \"zellij\": $([ "$_DEPS_ZELLIJ" -eq 0 ] && echo true || echo false)"
     echo "  }"
     echo "}"
 }

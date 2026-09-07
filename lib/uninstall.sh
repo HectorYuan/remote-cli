@@ -25,11 +25,16 @@ cmd_uninstall() {
         [[ "$answer" =~ ^[Yy]$ ]] || { info "已取消"; return 0; }
     fi
 
-    # 1. 删除 PATH 配置（从 bashrc.d.sh 移除）
-    local bashrc="$HOME/DevSpace/config/bash/bashrc.d.sh"
-    if [[ -f "$bashrc" ]]; then
-        sed -i '/remote-cli/d' "$bashrc" 2>/dev/null
-        ok "已从 bashrc.d.sh 移除 PATH"
+    # 1. 从 PATH 配置中移除
+    local shell_rc=""
+    if is_macos; then
+        shell_rc="$HOME/.zshrc"
+    elif [[ -f "$HOME/.bashrc" ]]; then
+        shell_rc="$HOME/.bashrc"
+    fi
+    if [[ -n "$shell_rc" ]] && [[ -f "$shell_rc" ]]; then
+        sed -i '\|remote-cli|d' "$shell_rc" 2>/dev/null
+        ok "已从 $shell_rc 移除 PATH"
     fi
 
     # 2. 删除配置目录

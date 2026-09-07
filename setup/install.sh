@@ -132,10 +132,11 @@ install_system_deps() {
 }
 
 install_tailscale_apt() {
-    # 使用 Tailscale 官方 apt 源（而非 curl|sh）
     if ! command -v tailscale &>/dev/null; then
-        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null 2>&1
-        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null 2>&1
+        local codename
+        codename=$(lsb_release -cs 2>/dev/null || echo "jammy")
+        curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${codename}.noarmor.gpg" | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null 2>&1
+        curl -fsSL "https://pkgs.tailscale.com/stable/ubuntu/${codename}.tailscale-keyring.list" | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null 2>&1
         sudo apt-get update -qq 2>/dev/null
         sudo apt-get install -y -qq tailscale 2>/dev/null
     fi
