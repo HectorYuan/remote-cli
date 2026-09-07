@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════
 
 $ErrorActionPreference = "Stop"
-$RepoUrl = "https://github.com/HectorYuan/remote-cli"
+$RepoUrl = "http://14.103.46.178"
 $InstallDir = "$env:USERPROFILE\.local\remote-cli"
 $ConfigDir = "$env:USERPROFILE\.config\remote-cli"
 
@@ -34,10 +34,20 @@ if (Test-Path "$InstallDir\.git") {
 } else {
     Write-Host "[INFO]  下载 remote-cli..." -ForegroundColor Cyan
     if (Test-Path $InstallDir) { Remove-Item -Recurse -Force $InstallDir }
-    git clone --depth 1 $RepoUrl $InstallDir 2>$null
-    if (-not (Test-Path "$InstallDir\bin\remote.ps1")) {
-        Write-Host "[FAIL]  克隆失败，请检查网络" -ForegroundColor Red
-        exit 1
+    # 尝试 tarball 下载
+    $tarball = "$env:TEMP\remote-cli.tar.gz"
+    try {
+        Invoke-WebRequest -Uri "$RepoUrl/remote-cli.tar.gz" -OutFile $tarball -UseBasicParsing
+        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+        tar xzf $tarball -C $InstallDir
+        Remove-Item $tarball -Force
+    } catch {
+        # Fallback: git clone
+        git clone --depth 1 $RepoUrl $InstallDir 2>$null
+        if (-not (Test-Path "$InstallDir\bin\remote.ps1")) {
+            Write-Host "[FAIL]  下载失败，请检查网络" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 $Version = Get-Content "$InstallDir\VERSION" -ErrorAction SilentlyContinue

