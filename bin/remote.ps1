@@ -134,7 +134,9 @@ if ($Help -or $Command -eq "help" -or -not $Command) {
 }
 
 if ($Version) {
-    Write-Host "remote-cli 0.2.0 (Windows)"
+    $ver = Get-Content "$PSScriptRoot\..\VERSION" -ErrorAction SilentlyContinue
+    if (-not $ver) { $ver = "dev" }
+    Write-Host "remote-cli $($ver.Trim()) (Windows)"
     return
 }
 

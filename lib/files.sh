@@ -2,6 +2,7 @@
 # ═══════════════════════════════════════════════════════════════════
 #  files.sh — 文件传输（push/pull/list）
 #  优先 rsync，fallback scp
+#  v0.2.1: 消除 eval，用数组处理含空格路径
 # ═══════════════════════════════════════════════════════════════════
 
 _files_target() {
@@ -9,24 +10,22 @@ _files_target() {
     [[ -z "$_TARGET_IP" ]] && { error "未找到连接目标"; return 1; }
 }
 
-_files_ssh_opts() {
-    echo "-i $SSH_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
-}
-
 _files_transfer() {
     local direction="$1" src="$2" dst="$3"
-    local ssh_opts
-    ssh_opts=$(_files_ssh_opts)
 
     if command -v rsync &>/dev/null; then
-        local rsync_opts="-avz --progress -e \"ssh $ssh_opts\""
-        [[ "$direction" == "push" ]] && eval "rsync $rsync_opts '$src' '$REMOTE_USER@$_TARGET_IP:$dst'" || \
-        eval "rsync $rsync_opts '$REMOTE_USER@$_TARGET_IP:$dst' '$src'"
-    else
+        local -a rsync_opts=(-avz --progress -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10")
         if [[ "$direction" == "push" ]]; then
-            scp -r $ssh_opts "$src" "$REMOTE_USER@$_TARGET_IP:$dst"
+            "${rsync_opts[@]}" "$src" "$REMOTE_USER@$_TARGET_IP:$dst"
         else
-            scp -r $ssh_opts "$REMOTE_USER@$_TARGET_IP:$dst" "$src"
+            "${rsync_opts[@]}" "$REMOTE_USER@$_TARGET_IP:$dst" "$src"
+        fi
+    else
+        local -a scp_opts=(-r -i "$SSH_KEY" -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10")
+        if [[ "$direction" == "push" ]]; then
+            scp "${scp_opts[@]}" "$src" "$REMOTE_USER@$_TARGET_IP:$dst"
+        else
+            scp "${scp_opts[@]}" "$REMOTE_USER@$_TARGET_IP:$dst" "$src"
         fi
     fi
 }
@@ -39,6 +38,7 @@ cmd_files() {
         push)
             local local_path="${1:?需要指定本地文件}"
             local remote_path="${2:-$(basename "$local_path")}"
+            [[ ! -e "$local_path" ]] && { error "文件不存在: $local_path"; return 1; }
             _files_target || return 1
             info "📤 上传: $local_path → $_TARGET_IP:$remote_path"
             _files_transfer push "$local_path" "$remote_path" && ok "上传完成" || error "上传失败"
@@ -54,7 +54,8 @@ cmd_files() {
             local remote_path="${1:-.}"
             _files_target || return 1
             info "📂 远程目录: $remote_path"
-            ssh $(_files_ssh_opts) "$REMOTE_USER@$_TARGET_IP" "ls -la $remote_path" 2>/dev/null
+            ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
+                "$REMOTE_USER@$_TARGET_IP" "ls -la \"$remote_path\"" 2>/dev/null
             ;;
         help|--help|-h)
             echo "用法:"

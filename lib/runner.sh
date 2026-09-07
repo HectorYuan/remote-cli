@@ -32,6 +32,8 @@ cmd_runner() {
             ;;
         logs)
             local service="${1:-hbbs}"
+            # 安全校验：只允许合法容器名
+            [[ "$service" =~ ^[a-zA-Z0-9._-]+$ ]] || die "非法服务名: $service"
             _runner_ssh "$RUNNER_IP" "$RUNNER_USER" "$RUNNER_KEY" \
                 "docker logs $service --tail 30 2>&1" 2>/dev/null
             ;;

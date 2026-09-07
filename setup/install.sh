@@ -8,7 +8,7 @@ set -euo pipefail
 
 REMOTE_CLI_VERSION="0.2.0"
 INSTALL_DIR="${REMOTE_CLI_DIR:-$HOME/.local/remote-cli}"
-REPO_URL="${REMOTE_CLI_REPO:-https://github.com/user/remote-cli}"
+REPO_URL="${REMOTE_CLI_REPO:-https://github.com/HectorYuan/remote-cli}"
 
 # ─── 日志 ──────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -58,8 +58,7 @@ install_remote_cli() {
         # 如果有 git，用 clone；否则用 tarball
         if command -v git &>/dev/null; then
             git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" 2>/dev/null || \
-            git clone --depth 1 "https://github.com/user/remote-cli.git" "$INSTALL_DIR" 2>/dev/null || \
-            fail "克隆失败"
+            fail "克隆失败，请检查网络或手动安装"
         else
             fail "需要 git 来安装 remote-cli"
         fi
