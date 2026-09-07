@@ -5,61 +5,156 @@
 #  用法: remote <command> [options]
 #
 #  命令:
-#    connect [host]  连接工作站终端（自动选路）
-#    status          健康检查
-#    fix             诊断+修复
-#    forward         端口转发
-#    desktop         远程桌面
-#    code            Web IDE
-#    runner          Runner 管理
-#    setup           首次部署
-#    config          配置管理
-#    --version       版本号
-#    --help          帮助
+#    connect [host]   连接工作站终端（自动选路）
+#    status           健康检查
+#    fix              诊断+修复
+#    forward          端口转发
+#    desktop          远程桌面
+#    code             Web IDE
+#    runner           Runner 管理
+#    config           配置管理
+#    update           自更新
+#    --version        版本号
+#    --help           帮助
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
 
-# 定位项目根目录
 REMOTE_CLI_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export REMOTE_CLI_DIR
 
-# 加载所有模块
+# ─── 基础层始终加载 ────────────────────────────────────────────
+source "$REMOTE_CLI_DIR/lib/common.sh"
 source "$REMOTE_CLI_DIR/lib/config.sh"
-source "$REMOTE_CLI_DIR/lib/detect.sh"
-source "$REMOTE_CLI_DIR/lib/connect.sh"
-source "$REMOTE_CLI_DIR/lib/status.sh"
-source "$REMOTE_CLI_DIR/lib/fix.sh"
-source "$REMOTE_CLI_DIR/lib/forward.sh"
-source "$REMOTE_CLI_DIR/lib/runner.sh"
-source "$REMOTE_CLI_DIR/lib/desktop.sh"
-source "$REMOTE_CLI_DIR/lib/code.sh"
-source "$REMOTE_CLI_DIR/lib/setup.sh"
-
-# 初始化配置
 load_config
 
-# ─── 子命令路由 ──────────────────────────────────────────────────
+# ─── 功能模块惰性加载（按需 source）────────────────────────────
+declare -A _CMD_MODULES=(
+    [connect]="detect.sh connect.sh"
+    [c]="detect.sh connect.sh"
+    [status]="detect.sh status.sh"
+    [st]="detect.sh status.sh"
+    [fix]="detect.sh fix.sh"
+    [forward]="detect.sh forward.sh"
+    [fwd]="detect.sh forward.sh"
+    [desktop]="detect.sh desktop.sh"
+    [desk]="detect.sh desktop.sh"
+    [code]="detect.sh code.sh"
+    [runner]="runner.sh"
+    [r]="runner.sh"
+    [setup]="detect.sh status.sh setup.sh"
+    [config]=""
+    [cfg]=""
+    [update]=""
+)
+
+_load_cmd() {
+    local cmd="$1"
+    local modules="${_CMD_MODULES[$cmd]:-}"
+    for mod in $modules; do
+        [[ " ${_LOADED_MODULES:-} " == *" $mod "* ]] && continue
+        source "$REMOTE_CLI_DIR/lib/$mod"
+        _LOADED_MODULES+=" $mod"
+    done
+}
+
+# ─── 子命令路由 ────────────────────────────────────────────────
 cmd="${1:-help}"
 shift 2>/dev/null || true
 
 case "$cmd" in
-    connect|c)      cmd_connect "$@" ;;
-    status|st)      cmd_status "$@" ;;
-    fix)            cmd_fix "$@" ;;
-    forward|fwd)    cmd_forward "$@" ;;
-    desktop|desk)   cmd_desktop "$@" ;;
-    code)           cmd_code "$@" ;;
-    runner|r)       cmd_runner "$@" ;;
-    setup)          cmd_setup "$@" ;;
+    connect|c)
+        _load_cmd connect
+        cmd_connect "$@"
+        ;;
+    status|st)
+        _load_cmd status
+        cmd_status "$@"
+        ;;
+    fix)
+        _load_cmd fix
+        cmd_fix "$@"
+        ;;
+    forward|fwd)
+        _load_cmd forward
+        cmd_forward "$@"
+        ;;
+    desktop|desk)
+        _load_cmd desktop
+        cmd_desktop "$@"
+        ;;
+    code)
+        _load_cmd code
+        cmd_code "$@"
+        ;;
+    runner|r)
+        _load_cmd runner
+        cmd_runner "$@"
+        ;;
+    setup)
+        _load_cmd setup
+        cmd_setup "$@"
+        ;;
     config|cfg)
         echo "配置文件: $CONFIG_ENV"
         if [[ -f "$CONFIG_ENV" ]]; then
-            # 显示非敏感配置
             grep -v "KEY\|PASSWORD\|SECRET\|TOKEN" "$CONFIG_ENV" 2>/dev/null || echo "(空)"
         else
             echo "未创建，运行 'remote setup' 初始化"
         fi
         ;;
-    --version|-v)   echo "remote-cli $REMOTE_CLI_VERSION" ;;
-    --help|-h|help) echo "用法: remote <command> [options]" ;;
-    *)              echo "未知命令: $cmd (运行 remote --help)" ;;
+    update)
+        cmd_update() {
+            if [[ ! -d "$REMOTE_CLI_DIR/.git" ]]; then
+                die "非 git 安装，需手动更新: cd $REMOTE_CLI_DIR && git init"
+            fi
+            info "检查更新..."
+            git -C "$REMOTE_CLI_DIR" fetch --quiet origin 2>/dev/null || { warn "网络错误"; return 1; }
+            local behind
+            behind=$(git -C "$REMOTE_CLI_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo "0")
+            if [[ "${behind:-0}" -eq 0 ]]; then
+                ok "已是最新版本 ($REMOTE_CLI_VERSION)"
+                return 0
+            fi
+            info "发现 $behind 个新提交"
+            if confirm "更新到最新版本？"; then
+                git -C "$REMOTE_CLI_DIR" pull --ff-only && ok "已更新"
+            fi
+        }
+        cmd_update
+        ;;
+    --version|-v)
+        echo "remote-cli $REMOTE_CLI_VERSION"
+        ;;
+    --help|-h|help)
+        cat << 'HELP'
+用法: remote <command> [options]
+
+命令:
+  connect [host]   连接工作站终端（自动选路）
+  status           健康检查
+  fix              诊断+修复
+  forward          端口转发
+  desktop          远程桌面
+  code             Web IDE
+  runner           Runner 管理
+  config           配置管理
+  update           自更新
+  --version        版本号
+  --help           帮助
+
+示例:
+  remote connect              # 自动选路连接
+  remote connect --dry-run    # 只显示路径不连接
+  remote status               # 查看所有服务状态
+  remote status --json        # JSON 输出
+  remote fix --auto           # 自动修复
+  remote forward 8188         # 端口转发
+  remote runner status        # Runner 状态
+  remote runner restart       # Runner 重启
+HELP
+        ;;
+    *)
+        error "未知命令: $cmd (运行 remote --help)"
+        exit 1
+        ;;
 esac

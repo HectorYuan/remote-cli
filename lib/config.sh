@@ -1,44 +1,90 @@
 #!/usr/bin/env bash
-# remote-cli 配置管理
-# 非敏感默认值 + 加载用户配置
+# ═══════════════════════════════════════════════════════════════════
+#  config.sh — 配置管理
+#  三层优先级：内置默认值 → config.env → 环境变量（最高）
+#  所有硬编码值已消除，统一走配置体系
+# ═══════════════════════════════════════════════════════════════════
 
-# ─── 版本 ────────────────────────────────────────────────────────
-REMOTE_CLI_VERSION="0.1.0"
-
-# ─── 路径 ────────────────────────────────────────────────────────
-REMOTE_CLI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_VERSION_EXPECTED=1
 CONFIG_DIR="$HOME/.config/remote-cli"
 CONFIG_ENV="$CONFIG_DIR/config.env"
 BACKUP_DIR="$CONFIG_DIR/backups"
 
-# ─── 非敏感默认值 ────────────────────────────────────────────────
-LAN_IP="${REMOTE_LAN_IP:-172.16.138.50}"
-MOSH_PORT_START="${REMOTE_MOSH_PORT_START:-60000}"
-MOSH_PORT_END="${REMOTE_MOSH_PORT_END:-60100}"
-SSH_USER="${REMOTE_SSH_USER:-hector}"
-SSH_KEY="${REMOTE_SSH_KEY:-$HOME/.ssh/id_ed25519}"
-ZELLIJ_LAYOUTS=("dev" "ollama-work" "writing")
+# ─── 内置默认值（不可变）──────────────────────────────────────
+_defaults() {
+    : "${REMOTE_HOST:=}"                                              # 远程工作站 Tailscale IP 或主机名
+    : "${REMOTE_USER:=hector}"                                        # SSH 用户名
+    : "${SSH_KEY:=$HOME/.ssh/id_ed25519}"                             # 本地 SSH 私钥
+    : "${LAN_IP:=172.16.138.50}"                                      # 局域网 IP
+    : "${MOSH_PORT_START:=60000}"                                     # Mosh UDP 端口起始
+    : "${MOSH_PORT_END:=60100}"                                       # Mosh UDP 端口结束
+    : "${RUNNER_IP:=}"                                                # Runner 中继 IP
+    : "${RUNNER_USER:=root}"                                          # Runner SSH 用户
+    : "${RUNNER_KEY:=$HOME/.ssh/neorun.pem}"                          # Runner SSH 私钥
+    : "${RUSTDESK_KEY:=}"                                             # RustDesk 中继公钥
+    : "${CODE_SERVER_PORT:=8080}"                                     # code-server 端口
+    : "${CONFIG_VERSION:=0}"                                          # 配置版本号
+}
 
-# ─── 加载用户敏感配置 ────────────────────────────────────────────
+# ─── 加载配置 ──────────────────────────────────────────────────
 load_config() {
+    # 1. 设内置默认值
+    _defaults
+
+    # 2. 加载 config.env（覆盖默认值）
     if [[ -f "$CONFIG_ENV" ]]; then
         # shellcheck source=/dev/null
         source "$CONFIG_ENV"
     fi
-    # 从环境变量补充（优先级最高）
-    RUNNER_IP="${RUNNER_IP:-}"
-    RUSTDESK_KEY="${RUSTDESK_KEY:-}"
-    CODE_SERVER_PORT="${CODE_SERVER_PORT:-8443}"
+
+    # 3. 环境变量已在 _defaults 中通过 := 语法处理（不覆盖已有值）
+    #    但用户如果显式 export 了变量，bash 的 := 语义是：
+    #    如果变量未设置或为空字符串，则设置为默认值
+    #    所以用户 export RUNNER_IP=xxx 时，:= 不会覆盖它 — 这正是我们想要的
+
+    # 4. CONFIG_VERSION 迁移检查
+    if [[ "$CONFIG_VERSION" -lt "$CONFIG_VERSION_EXPECTED" ]]; then
+        _migrate_config "$CONFIG_VERSION" "$CONFIG_VERSION_EXPECTED"
+    fi
 }
 
-# ─── 获取 Tailscale IP（动态，不缓存）────────────────────────────
-get_tailscale_ip() {
-    tailscale ip -4 2>/dev/null || echo ""
+# ─── 配置迁移（幂等）──────────────────────────────────────────
+_migrate_config() {
+    local from="$1" to="$2"
+    info "配置迁移: v${from} -> v${to}"
+
+    # 备份旧配置
+    [[ -f "$CONFIG_ENV" ]] && cp "$CONFIG_ENV" "$CONFIG_ENV.bak.${from}"
+
+    # 增量追加缺失字段
+    _append_if_missing "CONFIG_VERSION" "\"$to\""
+
+    ok "配置已迁移到 v${to}"
 }
 
-# ─── 检测 Tailscale 是否在线 ─────────────────────────────────────
-is_tailscale_running() {
-    local state
-    state=$(tailscale status --json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('BackendState',''))" 2>/dev/null)
-    [[ "$state" == "Running" ]]
+_append_if_missing() {
+    local key="$1" default="$2"
+    if ! grep -q "^${key}=" "$CONFIG_ENV" 2>/dev/null; then
+        echo "${key}=${default}" >> "$CONFIG_ENV"
+        info "已添加 ${key}=${default}"
+    fi
+}
+
+# ─── 初始化（首次 setup 时调用）────────────────────────────────
+init_config() {
+    mkdir -p "$CONFIG_DIR"
+    if [[ ! -f "$CONFIG_ENV" ]]; then
+        cat > "$CONFIG_ENV" << 'EOF'
+# remote-cli 敏感配置（不要提交到 git）
+CONFIG_VERSION=1
+REMOTE_HOST=""
+REMOTE_USER="hector"
+RUNNER_IP=""
+RUNNER_USER="root"
+RUNNER_KEY="~/.ssh/neorun.pem"
+RUSTDESK_KEY=""
+CODE_SERVER_PORT=8080
+EOF
+        chmod 600 "$CONFIG_ENV"
+    fi
 }

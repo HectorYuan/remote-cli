@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# remote-cli 诊断修复模块
-# 支持: --dry-run (只打印) --auto (无破坏性自动修复) --backup (修改前备份)
+# ═══════════════════════════════════════════════════════════════════
+#  fix.sh — 诊断+修复
+#  支持: --dry-run (只打印) --auto (非交互式修复)
+#  v0.1.x 保留简单 eval 逻辑，v0.2.x 改为显式函数
+# ═══════════════════════════════════════════════════════════════════
 
 cmd_fix() {
-    local dry_run=0 auto=0 do_backup=0
+    local dry_run=0 auto=0
     for arg in "$@"; do
         case "$arg" in
             --dry-run) dry_run=1 ;;
             --auto) auto=1 ;;
-            --backup) do_backup=1 ;;
         esac
     done
 
-    load_config
     local issues=()
     local fixes=()
 
@@ -24,15 +25,23 @@ cmd_fix() {
     fi
 
     if [[ ! -f "$HOME/.ssh/authorized_keys" ]] || [[ ! -s "$HOME/.ssh/authorized_keys" ]]; then
-        if [[ -f "$HOME/.ssh/id_ed25519.pub" ]]; then
+        if [[ -f "$SSH_KEY.pub" ]]; then
             issues+=("authorized_keys 为空")
-            fixes+=("cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys")
+            fixes+=("ensure_authorized_key '$SSH_KEY.pub'")
         fi
     fi
 
     if [[ ! -f /etc/ssh/sshd_config.d/hardened.conf ]]; then
         issues+=("SSH 未加固 (无 hardened.conf)")
-        fixes+=("创建 /etc/ssh/sshd_config.d/hardened.conf")
+        fixes+=("sudo bash -c 'cat > /etc/ssh/sshd_config.d/hardened.conf << SSHEOF
+PasswordAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin prohibit-password
+MaxAuthTries 3
+LoginGraceTime 30
+ClientAliveInterval 60
+ClientAliveCountMax 3
+SSHEOF'")
     fi
 
     detect_rustdesk
@@ -42,23 +51,24 @@ cmd_fix() {
         rd2_server=$(grep "rendezvous_server" "$rd_config" 2>/dev/null | sed "s/.*= *'\\(.*\\)'.*/\\1/")
         if [[ "$rd2_server" == *"rustdesk.com"* ]]; then
             issues+=("RustDesk2.toml 指向官方服务器 (应指向 Runner)")
-            fixes+=("修改 $rd_config 中的 rendezvous_server")
+            fixes+=("sed -i \"s|rendezvous_server = '.*'|rendezvous_server = '$RUNNER_IP:21116'|\" '$rd_config'")
         fi
     fi
 
     detect_code_server
     if [[ "$_CS_ACTIVE" -ne 0 ]]; then
         issues+=("code-server 未运行")
-        fixes+=("sudo systemctl enable --now code-server@$USER")
+        fixes+=("sudo systemctl enable --now code-server@$(whoami)")
     fi
 
     # ─── 输出诊断结果 ─────────────────────────────────────────
     if [[ ${#issues[@]} -eq 0 ]]; then
-        echo "✅ 未发现问题"
+        ok "未发现问题"
         return 0
     fi
 
-    echo "🔍 发现 ${#issues[@]} 个问题:"
+    echo ""
+    warn "发现 ${#issues[@]} 个问题:"
     echo ""
     for i in "${!issues[@]}"; do
         printf "  %d. %s\n" $((i+1)) "${issues[$i]}"
@@ -67,28 +77,21 @@ cmd_fix() {
     echo ""
 
     if [[ "$dry_run" -eq 1 ]]; then
-        echo "(--dry-run 模式，不执行修复)"
+        info "(--dry-run 模式，不执行修复)"
         return 0
     fi
 
     # ─── 执行修复 ─────────────────────────────────────────────
-    local confirm="y"
     if [[ "$auto" -ne 1 ]]; then
-        read -rp "执行修复？[Y/n] " confirm
-        confirm="${confirm:-y}"
-    fi
-
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        echo "已取消"
-        return 0
+        confirm "执行修复？" || { info "已取消"; return 0; }
     fi
 
     for i in "${!issues[@]}"; do
         echo ""
-        echo "🔧 修复: ${issues[$i]}"
-        eval "${fixes[$i]}"
+        info "修复: ${issues[$i]}"
+        eval "${fixes[$i]}" 2>&1 || warn "修复失败: ${issues[$i]}"
     done
 
     echo ""
-    echo "✅ 修复完成"
+    ok "修复完成"
 }

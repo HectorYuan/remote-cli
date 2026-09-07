@@ -1,26 +1,36 @@
 #!/usr/bin/env bash
-# remote-cli 连接模块
-# 自动选择最优路径（Tailscale > LAN）+ 协议（Mosh > SSH）+ Zellij attach
+# ═══════════════════════════════════════════════════════════════════
+#  connect.sh — 连接工作站终端
+#  支持: --mosh (强制 mosh) --ssh (强制 ssh) --dry-run (只显示路径)
+# ═══════════════════════════════════════════════════════════════════
 
 cmd_connect() {
-    local host="${1:-}"
-    local target_ip=""
-    local target_source=""
-    local method="ssh"
+    local host="" method="auto" dry_run=0
+
+    # 解析参数
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --mosh)    method="mosh"; shift ;;
+            --ssh)     method="ssh"; shift ;;
+            --dry-run) dry_run=1; shift ;;
+            -*)        error "未知选项: $1"; return 1 ;;
+            *)         host="$1"; shift ;;
+        esac
+    done
+
+    local target_ip="" target_source=""
 
     if [[ -n "$host" ]]; then
-        # 指定了 host，直接连
         target_ip="$host"
         target_source="manual"
     else
-        # 自动选路
-        detect_best_target
+        detect_best_target || true
         if [[ -z "$_TARGET_IP" ]]; then
-            echo "❌ 无法连接工作站"
-            echo "   - Tailscale: $(_TS_RUNNING && echo "在线 $_TS_IP" || echo "离线")"
-            echo "   - 局域网: $LAN_IP 不可达"
-            echo ""
-            echo "请检查网络或运行: sudo tailscale up"
+            error "无法连接工作站"
+            error "  Tailscale: $(is_tailscale_running && echo "在线 $(get_tailscale_ip)" || echo "离线")"
+            error "  局域网: $LAN_IP 不可达"
+            error ""
+            error "请检查网络或运行: sudo tailscale up"
             return 1
         fi
         target_ip="$_TARGET_IP"
@@ -28,23 +38,28 @@ cmd_connect() {
     fi
 
     # 选择协议
-    detect_mosh
-    if [[ "$_MOSH_AVAILABLE" -eq 0 ]]; then
-        method="mosh"
+    if [[ "$method" == "auto" ]]; then
+        detect_mosh && method="mosh" || method="ssh"
     fi
 
-    # 显示连接信息
-    echo "🔗 连接工作站 ($target_source)"
-    echo "   目标: $SSH_USER@$target_ip"
-    echo "   协议: $method"
+    # dry-run 模式
+    if [[ "$dry_run" -eq 1 ]]; then
+        info "连接路径:"
+        echo "  目标: $REMOTE_USER@$target_ip"
+        echo "  来源: $target_source"
+        echo "  协议: $method"
+        echo "  SSH密钥: $SSH_KEY"
+        return 0
+    fi
 
-    # 执行连接
+    info "🔗 连接工作站 ($target_source)"
+
     if [[ "$method" == "mosh" ]]; then
         mosh --ssh="ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new" \
-             "$SSH_USER@$target_ip"
+             "$REMOTE_USER@$target_ip"
     else
         ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=60 -o ServerAliveCountMax=3 \
-            "$SSH_USER@$target_ip"
+            "$REMOTE_USER@$target_ip"
     fi
 }

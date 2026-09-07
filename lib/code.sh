@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-# remote-cli code-server 模块
+# ═══════════════════════════════════════════════════════════════════
+#  code.sh — code-server Web IDE
+# ═══════════════════════════════════════════════════════════════════
 
 cmd_code() {
-    load_config
     detect_code_server
 
     if [[ "$_CS_ACTIVE" -ne 0 ]]; then
-        echo "⚠️  code-server 未运行"
-        echo "   启动: sudo systemctl enable --now code-server@$USER"
+        warn "code-server 未运行"
+        info "启动: sudo systemctl enable --now code-server@$(whoami)"
         return 1
     fi
 
     local cs_ip
     cs_ip=$(get_tailscale_ip 2>/dev/null || echo "$LAN_IP")
-    local url="http://${cs_ip}:${_CS_PORT:-8443}"
+    local url="http://${cs_ip}:${_CS_PORT:-8080}"
 
-    echo "💻 code-server"
-    echo "   URL: $url"
+    info "💻 code-server"
+    info "   URL: $url"
     echo ""
-    echo "   在浏览器中打开上述地址即可访问"
+    info "在浏览器中打开上述地址即可访问"
 }

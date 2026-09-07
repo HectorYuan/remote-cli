@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-# remote-cli Runner 管理模块
+# ═══════════════════════════════════════════════════════════════════
+#  runner.sh — Runner 中继服务器管理
+#  所有配置从 config.env 读取，不硬编码
+# ═══════════════════════════════════════════════════════════════════
+
+_runner_ssh() {
+    local host="${1:-$RUNNER_IP}"
+    local user="${2:-$RUNNER_USER}"
+    local key="${3:-$RUNNER_KEY}"
+    [[ -z "$host" ]] && die "未配置 RUNNER_IP，请在 $CONFIG_ENV 中设置"
+    ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host"
+}
 
 cmd_runner() {
-    load_config
     local subcmd="${1:-status}"
-
-    if [[ -z "${RUNNER_IP:-}" ]]; then
-        echo "❌ 未配置 RUNNER_IP，请在 ~/.config/remote-cli/config.env 中设置"
-        return 1
-    fi
+    shift 2>/dev/null || true
 
     case "$subcmd" in
         status)
-            echo "🖥️  Runner: $RUNNER_IP"
-            echo ""
-            ssh -i "$HOME/.ssh/neorun.pem" -o StrictHostKeyChecking=accept-new \
-                "root@$RUNNER_IP" "
+            info "Runner: $RUNNER_IP"
+            _runner_ssh "$RUNNER_IP" "$RUNNER_USER" "$RUNNER_KEY" "
                 echo 'Docker 容器:'
                 docker ps --format '  {{.Names}}\t{{.Status}}' 2>/dev/null
                 echo ''
@@ -27,19 +31,19 @@ cmd_runner() {
             " 2>/dev/null
             ;;
         logs)
-            local service="${2:-hbbs}"
-            ssh -i "$HOME/.ssh/neorun.pem" "root@$RUNNER_IP" \
+            local service="${1:-hbbs}"
+            _runner_ssh "$RUNNER_IP" "$RUNNER_USER" "$RUNNER_KEY" \
                 "docker logs $service --tail 30 2>&1" 2>/dev/null
             ;;
         restart)
-            echo "重启 Runner 容器..."
-            ssh -i "$HOME/.ssh/neorun.pem" "root@$RUNNER_IP" "
+            info "重启 Runner 容器..."
+            _runner_ssh "$RUNNER_IP" "$RUNNER_USER" "$RUNNER_KEY" "
                 docker restart hbbs hbbr 2>&1
                 echo '状态:' \$(docker ps --format '{{.Names}} {{.Status}}' | tr '\n' ', ')
             " 2>/dev/null
             ;;
         ssh)
-            ssh -i "$HOME/.ssh/neorun.pem" "root@$RUNNER_IP"
+            _runner_ssh "$RUNNER_IP" "$RUNNER_USER" "$RUNNER_KEY"
             ;;
         *)
             echo "用法: remote runner [status|logs|restart|ssh]"
