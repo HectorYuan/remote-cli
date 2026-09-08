@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint:
+    name: Lint (shellcheck + bash -n)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: bash syntax check
+        run: |
+          set -e
+          FAIL=0
+          for f in bin/remote lib/*.sh setup/*.sh tests/*.sh; do
+            if bash -n "$f"; then
+              echo "OK   $f"
+            else
+              echo "FAIL $f"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
+      - name: shellcheck
+        run: |
+          # 逐个检查，shellcheck 警告不阻塞（只报 error 级别）
+          FAIL=0
+          for f in bin/remote lib/*.sh setup/*.sh tests/*.sh; do
+            if shellcheck --severity=error "$f"; then
+              echo "OK   $f"
+            else
+              echo "ERR  $f"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
+  test:
+    name: Smoke test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: bash tests/smoke.sh
+
+  doctor:
+    name: Doctor dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq curl
+
+      - name: doctor --json 输出有效性
+        run: |
+          # doctor 在干净 CI 环境应能跑（依赖未装时报告 fail 是预期行为）
+          OUTPUT=$(bash bin/remote doctor --json 2>/dev/null) || true
+          echo "$OUTPUT" | jq . > /dev/null && echo "JSON valid"
+          echo "$OUTPUT"

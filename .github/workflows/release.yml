@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and attach tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: ver
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Verify tag matches VERSION
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="v$(cat VERSION | tr -d '[:space:]')"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag $TAG does not match VERSION $VERSION"
+            exit 1
+          fi
+          echo "Tag matches: $TAG"
+
+      - name: Lint before release
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          for f in bin/remote lib/*.sh setup/*.sh; do
+            bash -n "$f"
+            shellcheck --severity=error "$f"
+          done
+
+      - name: Smoke test before release
+        run: bash tests/smoke.sh
+
+      - name: Build tarball
+        run: |
+          cd ..
+          tar czf remote-cli.tar.gz remote-cli/
+          mv remote-cli.tar.gz remote-cli/
+
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: remote-cli.tar.gz
+          generate_release_notes: true
+          body: |
+            ## 安装
+
+            ```bash
+            # Linux / macOS / WSL
+            curl -fksSL https://14.103.46.178/setup/install.sh | bash
+
+            # Windows PowerShell
+            irm https://14.103.46.178/setup/install.ps1 | iex
+            ```
+
+            版本: ${{ steps.ver.outputs.version }}
