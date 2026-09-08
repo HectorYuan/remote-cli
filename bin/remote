@@ -19,6 +19,7 @@ declare -A _CMD_MODULES=(
     [status]="detect.sh status.sh"
     [st]="detect.sh status.sh"
     [fix]="detect.sh fix.sh"
+    [doctor]="detect.sh fix.sh doctor.sh"
     [forward]="detect.sh forward.sh"
     [fwd]="detect.sh forward.sh"
     [files]="detect.sh files.sh"
@@ -61,6 +62,10 @@ case "$cmd" in
     fix)
         _load_cmd fix
         cmd_fix "$@"
+        ;;
+    doctor)
+        _load_cmd doctor
+        cmd_doctor "$@"
         ;;
     forward|fwd)
         _load_cmd forward
