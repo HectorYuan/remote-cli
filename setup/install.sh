@@ -6,7 +6,7 @@
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-REMOTE_CLI_VERSION="0.2.0"
+REMOTE_CLI_VERSION="$(curl -fsSL "${REPO_URL:-http://14.103.46.178}/VERSION" 2>/dev/null || cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "dev")"
 INSTALL_DIR="${REMOTE_CLI_DIR:-$HOME/.local/remote-cli}"
 REPO_URL="${REMOTE_CLI_REPO:-http://14.103.46.178}"
 

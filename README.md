@@ -3,7 +3,7 @@
 统一远程访问 CLI — 一个命令连接工作站。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.2-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](VERSION)
 
 ## Quick Start
 

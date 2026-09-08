@@ -1,6 +1,14 @@
 # Changelog
 
-## v0.2.2 (2026-09-07)
+## v0.3.1 (2026-09-07)
+
+### Bug 修复
+- detect.sh: 统一读取 RustDesk2.toml（之前读 config2.toml 导致 status 误报）
+- install.ps1: 添加 UTF-8 BOM（PowerShell 5.1 兼容性）
+- install.sh: 版本号改为动态读取（不再硬编码）
+- install.ps1: RUNNER_KEY 默认值统一为 ~/.ssh/neorun.pem
+
+## v0.3.0 (2026-09-07)
 
 ### 体验优化
 - `remote status`: 终端不支持颜色时自动去掉 ANSI 转义

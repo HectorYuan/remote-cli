@@ -39,10 +39,12 @@ detect_tailscale() {
 }
 
 # ─── 检测 RustDesk 配置 ──────────────────────────────────────
+# RustDesk 实际读取的优先级: RustDesk2.toml > config2.toml
+# 这里以 RustDesk2.toml 为权威
 detect_rustdesk() {
     _RD_CONFIGURED=1
     _RD_SERVER=""
-    local config="$HOME/.config/rustdesk/config2.toml"
+    local config="$HOME/.config/rustdesk/RustDesk2.toml"
     if [[ -f "$config" ]]; then
         _RD_SERVER=$(grep "rendezvous_server" "$config" 2>/dev/null | sed "s/.*= *'\\(.*\\)'.*/\\1/" || true)
         [[ -n "$_RD_SERVER" ]] && _RD_CONFIGURED=0

@@ -1,4 +1,4 @@
-# ═══════════════════════════════════════════════════════════════════
+﻿# ═══════════════════════════════════════════════════════════════════
 #  remote-cli Windows installer
 #  Usage: irm http://14.103.46.178/setup/install.ps1 | iex
 #  Supports: Windows 10/11 (PowerShell 5.1+)
@@ -111,7 +111,7 @@ REMOTE_USER="hector"              # SSH username
 # --- Runner relay server ---
 RUNNER_IP=""                      # Runner public IP (for RustDesk relay)
 RUNNER_USER="root"                # Runner SSH username
-RUNNER_KEY="~/.ssh/id_ed25519"    # Runner SSH private key path
+RUNNER_KEY="~/.ssh/neorun.pem"    # Runner SSH private key path
 RUSTDESK_KEY=""                   # RustDesk relay public key
 # --- Services ---
 CODE_SERVER_PORT=8080             # code-server port
