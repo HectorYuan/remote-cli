@@ -1,7 +1,9 @@
-# ═══════════════════════════════════════════════════════════════════
-#  remote — Windows PowerShell 版本
-#  功能: 通过 SSH 连接远程工作站
-# ═══════════════════════════════════════════════════════════════════
+﻿<#
+  remote-cli Windows PowerShell entry point
+  Usage: remote <command> [options]
+  Supports: Windows 10/11 (PowerShell 5.1+)
+#>
+
 param(
     [Parameter(Position=0)]
     [string]$Command,
@@ -14,8 +16,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# ─── 配置加载 ──────────────────────────────────────────────────
+# --- Config loading ---
 $ConfigDir = "$env:USERPROFILE\.config\remote-cli"
 $ConfigFile = "$ConfigDir\config.env"
 $Config = @{}
@@ -36,28 +39,27 @@ $RunnerUser = $Config['RUNNER_USER']
 if (-not $RunnerUser) { $RunnerUser = "root" }
 $RunnerKey = $Config['RUNNER_KEY']
 if (-not $RunnerKey) { $RunnerKey = "$env:USERPROFILE\.ssh\id_ed25519" }
-# 展开 ~ 路径（PowerShell 不自动展开）
 $RunnerKey = $RunnerKey -replace '~', $env:USERPROFILE
 $RustdeskKey = $Config['RUSTDESK_KEY']
 
-# ─── 帮助 ──────────────────────────────────────────────────────
+# --- Help ---
 function Show-Help {
     Write-Host ""
-    Write-Host "用法: remote <command> [options]"
+    Write-Host "Usage: remote <command> [options]"
     Write-Host ""
-    Write-Host "命令:"
-    Write-Host "  connect [host]       SSH 连接工作站"
-    Write-Host "  status               健康检查"
-    Write-Host "  desktop              RustDesk 远程桌面"
-    Write-Host "  config               查看配置"
-    Write-Host "  --version            版本号"
-    Write-Host "  --help               帮助"
+    Write-Host "Commands:"
+    Write-Host "  connect [host]       SSH connect to workstation"
+    Write-Host "  status               Health check"
+    Write-Host "  desktop              RustDesk remote desktop"
+    Write-Host "  config               Show config"
+    Write-Host "  --version            Version"
+    Write-Host "  --help               Help"
     Write-Host ""
-    Write-Host "Windows 不支持: mosh, zellij, 文件传输（用 scp 替代）"
+    Write-Host "Windows limitations: no mosh, no zellij, use scp for file transfer"
     Write-Host ""
 }
 
-# ─── connect ───────────────────────────────────────────────────
+# --- connect ---
 function Connect-Remote {
     param([string]$TargetHost)
 
@@ -66,24 +68,27 @@ function Connect-Remote {
     } elseif ($RemoteHost) {
         $host_ = $RemoteHost
     } else {
-        Write-Host "[ERROR] 未配置 REMOTE_HOST，请编辑 $ConfigFile" -ForegroundColor Red
+        Write-Host "[ERROR] REMOTE_HOST not configured. Edit $ConfigFile" -ForegroundColor Red
         return
     }
 
-    Write-Host "[INFO]  连接 $RemoteUser@$host_ ..." -ForegroundColor Cyan
+    Write-Host "[INFO]  Connecting to $RemoteUser@$host_ ..." -ForegroundColor Cyan
     ssh "$RemoteUser@$host_"
 }
 
-# ─── status ────────────────────────────────────────────────────
+# --- status ---
 function Show-Status {
     Write-Host ""
-    Write-Host "服务              状态         详情"
-    Write-Host "────              ────         ────"
+    Write-Host "Service              Status        Detail"
+    Write-Host "------               ------        ------"
 
     # SSH Client
     $ssh = Get-Command ssh -ErrorAction SilentlyContinue
-    if ($ssh) { Write-Host "ssh              ✅ installed  $($ssh.Source)" }
-    else { Write-Host "ssh              ❌ missing" }
+    if ($ssh) {
+        Write-Host "ssh                 OK installed $($ssh.Source)"
+    } else {
+        Write-Host "ssh                 -- missing"
+    }
 
     # Tailscale
     $ts = Get-Command tailscale -ErrorAction SilentlyContinue
@@ -91,48 +96,50 @@ function Show-Status {
         $tsStatus = & tailscale status --json 2>$null | ConvertFrom-Json
         if ($tsStatus.BackendState -eq "Running") {
             $tsIp = & tailscale ip -4 2>$null
-            Write-Host "tailscale        ✅ online     $tsIp"
+            Write-Host "tailscale           OK online    $tsIp"
         } else {
-            Write-Host "tailscale        ⚠️  logged out"
+            Write-Host "tailscale           -- logged out"
         }
     } else {
-        Write-Host "tailscale        ❌ missing    需要安装"
+        Write-Host "tailscale           -- missing    Install required"
     }
 
     # RustDesk
     $rd = Get-Command rustdesk -ErrorAction SilentlyContinue
-    if ($rd) { Write-Host "rustdesk         ✅ installed" }
-    else { Write-Host "rustdesk         ⚠️  missing   需要安装" }
+    if ($rd) {
+        Write-Host "rustdesk            OK installed"
+    } else {
+        Write-Host "rustdesk            -- missing    Install required"
+    }
 
     # Config
     if ($RemoteHost) {
-        Write-Host "remote_host      ✅ configured $RemoteHost"
+        Write-Host "remote_host         OK configured $RemoteHost"
     } else {
-        Write-Host "remote_host      ⚠️  not set   编辑 $ConfigFile"
+        Write-Host "remote_host         -- not set    Edit $ConfigFile"
     }
 
     Write-Host ""
 }
 
-# ─── desktop ───────────────────────────────────────────────────
+# --- desktop ---
 function Start-Desktop {
     $rd = Get-Command rustdesk -ErrorAction SilentlyContinue
     if (-not $rd) {
-        Write-Host "[ERROR] RustDesk 未安装" -ForegroundColor Red
-        Write-Host "  下载: https://rustdesk.com/download" -ForegroundColor Yellow
+        Write-Host "[ERROR] RustDesk not installed" -ForegroundColor Red
+        Write-Host "  Download: https://rustdesk.com/download" -ForegroundColor Yellow
         return
     }
 
-    if ($RunnerIp -and $Config['RUSTDESK_KEY']) {
-        Write-Host "[INFO]  启动 RustDesk (中继: $RunnerIp)" -ForegroundColor Cyan
-        Start-Process rustdesk
+    if ($RunnerIp -and $RustdeskKey) {
+        Write-Host "[INFO]  Starting RustDesk (relay: $RunnerIp)" -ForegroundColor Cyan
     } else {
-        Write-Host "[INFO]  启动 RustDesk" -ForegroundColor Cyan
-        Start-Process rustdesk
+        Write-Host "[INFO]  Starting RustDesk" -ForegroundColor Cyan
     }
+    Start-Process rustdesk
 }
 
-# ─── 主路由 ────────────────────────────────────────────────────
+# --- Main router ---
 if ($Help -or $Command -eq "help" -or -not $Command) {
     Show-Help
     return
@@ -150,13 +157,13 @@ switch ($Command) {
     "status"   { Show-Status }
     "desktop"  { Start-Desktop }
     "config" {
-        Write-Host "配置文件: $ConfigFile"
+        Write-Host "Config: $ConfigFile"
         if (Test-Path $ConfigFile) {
             Get-Content $ConfigFile | Where-Object { $_ -notmatch 'KEY|PASSWORD|SECRET|TOKEN' }
         }
     }
     default {
-        Write-Host "[ERROR] 未知命令: $Command" -ForegroundColor Red
+        Write-Host "[ERROR] Unknown command: $Command" -ForegroundColor Red
         Show-Help
     }
 }
