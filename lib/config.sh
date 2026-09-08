@@ -64,8 +64,10 @@ _migrate_config() {
 
 _append_if_missing() {
     local key="$1" default="$2"
+    # 目录不存在时静默跳过（干净 CI 环境没有配置目录）
+    [[ -d "$CONFIG_DIR" ]] || return 0
     if ! grep -q "^${key}=" "$CONFIG_ENV" 2>/dev/null; then
-        echo "${key}=${default}" >> "$CONFIG_ENV"
+        echo "${key}=${default}" >> "$CONFIG_ENV" 2>/dev/null || true
         info "已添加 ${key}=${default}"
     fi
 }
