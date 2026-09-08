@@ -34,6 +34,11 @@ if (-not $RemoteUser) { $RemoteUser = "hector" }
 $RunnerIp = $Config['RUNNER_IP']
 $RunnerUser = $Config['RUNNER_USER']
 if (-not $RunnerUser) { $RunnerUser = "root" }
+$RunnerKey = $Config['RUNNER_KEY']
+if (-not $RunnerKey) { $RunnerKey = "$env:USERPROFILE\.ssh\id_ed25519" }
+# 展开 ~ 路径（PowerShell 不自动展开）
+$RunnerKey = $RunnerKey -replace '~', $env:USERPROFILE
+$RustdeskKey = $Config['RUSTDESK_KEY']
 
 # ─── 帮助 ──────────────────────────────────────────────────────
 function Show-Help {
