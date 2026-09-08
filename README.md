@@ -9,10 +9,10 @@
 
 ```bash
 # Linux / macOS / WSL
-curl -fsSL http://14.103.46.178/setup/install.sh | bash
+curl -fksSL https://14.103.46.178/setup/install.sh | bash
 
 # Windows PowerShell
-irm http://14.103.46.178/setup/install.ps1 | iex
+irm https://14.103.46.178/setup/install.ps1 | iex
 ```
 
 ## 使用

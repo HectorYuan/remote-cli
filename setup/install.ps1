@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$RepoUrl = "http://14.103.46.178"
+$RepoUrl = "https://14.103.46.178"
 $InstallDir = "$env:USERPROFILE\.local\remote-cli"
 $ConfigDir = "$env:USERPROFILE\.config\remote-cli"
 
@@ -39,7 +39,7 @@ if (Test-Path "$InstallDir\.git") {
     # Try tarball download first
     $tarball = "$env:TEMP\remote-cli.tar.gz"
     try {
-        Invoke-WebRequest -Uri "$RepoUrl/remote-cli.tar.gz" -OutFile $tarball -UseBasicParsing
+        Invoke-WebRequest -Uri "$RepoUrl/remote-cli.tar.gz" -OutFile $tarball -UseBasicParsing -SkipCertificateCheck
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         tar xzf $tarball -C $InstallDir --strip-components=1
         Remove-Item $tarball -Force

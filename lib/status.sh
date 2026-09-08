@@ -5,13 +5,32 @@
 # ═══════════════════════════════════════════════════════════════════
 
 cmd_status() {
-    local json=0 deps=0
+    local json=0 deps=0 watch=0 interval=5
     for arg in "$@"; do
         case "$arg" in
             --json) json=1 ;;
             --deps) deps=1 ;;
+            --watch)
+                # 兼容 --watch=N 或 --watch N
+                if [[ "$arg" == *=* ]]; then
+                    interval="${arg#*=}"
+                else
+                    interval="${2:-5}"
+                    shift
+                fi
+                watch=1
+                ;;
         esac
     done
+
+    if [[ "$watch" -eq 1 ]]; then
+        info "定时刷新 (每 ${interval}s, Ctrl+C 退出)"
+        while true; do
+            clear
+            cmd_status
+            sleep "$interval"
+        done
+    fi
 
     detect_all
 

@@ -29,9 +29,9 @@ declare -A _CMD_MODULES=(
     [r]="runner.sh"
     [setup]="detect.sh status.sh setup.sh"
     [install]="install.sh"
-    [update]=""
+    [update]="update.sh"
     [uninstall]=""
-    [config]=""
+    [config]="config_cmd.sh"
     [cfg]=""
 )
 
@@ -91,28 +91,12 @@ case "$cmd" in
         cmd_install "$@"
         ;;
     config|cfg)
-        echo "配置文件: $CONFIG_ENV"
-        if [[ -f "$CONFIG_ENV" ]]; then
-            grep -v "KEY\|PASSWORD\|SECRET\|TOKEN" "$CONFIG_ENV" 2>/dev/null || echo "(空)"
-        else
-            echo "未创建，运行 'remote setup' 初始化"
-        fi
+        _load_cmd config
+        cmd_config "$@"
         ;;
     update)
-        if [[ ! -d "$REMOTE_CLI_DIR/.git" ]]; then
-            die "非 git 安装，需手动更新"
-        fi
-        info "检查更新..."
-        git -C "$REMOTE_CLI_DIR" fetch --quiet origin 2>/dev/null || { warn "网络错误"; exit 1; }
-        behind=$(git -C "$REMOTE_CLI_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo "0")
-        if [[ "${behind:-0}" -eq 0 ]]; then
-            ok "已是最新版本 ($REMOTE_CLI_VERSION)"
-        else
-            info "发现 $behind 个新提交"
-            if confirm "更新到最新版本？"; then
-                git -C "$REMOTE_CLI_DIR" pull --ff-only && ok "已更新"
-            fi
-        fi
+        _load_cmd update
+        cmd_update "$@"
         ;;
     uninstall)
         _load_cmd uninstall

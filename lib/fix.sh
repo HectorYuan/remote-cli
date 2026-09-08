@@ -173,6 +173,8 @@ cmd_fix() {
             continue
         fi
         info "修复: ${issues[$i]}"
+        # 审计日志
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${issues[$i]} → ${fix_funcs[$i]}" >> "$CONFIG_DIR/audit.log" 2>/dev/null || true
         "${fix_funcs[$i]}" 2>&1 || warn "修复失败: ${issues[$i]}"
     done
 
