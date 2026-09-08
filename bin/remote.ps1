@@ -122,6 +122,65 @@ function Show-Status {
     Write-Host ""
 }
 
+# --- install ---
+function Install-Deps {
+    $deps = @(
+        @{ Tool = "ssh";       Pkg = "OpenSSH.Client" }
+        @{ Tool = "tailscale"; Pkg = "Tailscale.Tailscale" }
+        @{ Tool = "rustdesk";  Pkg = "RustDesk.RustDesk" }
+        @{ Tool = "git";       Pkg = "Git.Git" }
+    )
+
+    Write-Host ""
+    Write-Host "Checking dependencies..." -ForegroundColor Cyan
+
+    $missing = @()
+    foreach ($d in $deps) {
+        if (Get-Command $d.Tool -ErrorAction SilentlyContinue) {
+            Write-Host "[OK]    $($d.Tool) installed" -ForegroundColor Green
+        } else {
+            Write-Host "[--]    $($d.Tool) missing" -ForegroundColor Yellow
+            $missing += $d
+        }
+    }
+
+    if ($missing.Count -eq 0) {
+        Write-Host ""
+        Write-Host "All dependencies installed" -ForegroundColor Green
+        return
+    }
+
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host ""
+        Write-Host "[WARN] winget not found. Install manually:" -ForegroundColor Yellow
+        foreach ($d in $missing) {
+            Write-Host "  $($d.Tool): https://www.google.com/search?q=$($d.Tool)+download" -ForegroundColor Yellow
+        }
+        return
+    }
+
+    Write-Host ""
+    $confirm = Read-Host "Install missing dependencies? [y/N]"
+    if ($confirm -ne "y" -and $confirm -ne "Y") {
+        Write-Host "Cancelled"
+        return
+    }
+
+    foreach ($d in $missing) {
+        Write-Host ""
+        Write-Host "[INFO]  Installing $($d.Tool)..." -ForegroundColor Cyan
+        winget install --id $d.Pkg --silent --accept-package-agreements --accept-source-agreements
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[OK]    $($d.Tool) installed" -ForegroundColor Green
+        } else {
+            Write-Host "[FAIL]  $($d.Tool) install failed" -ForegroundColor Red
+        }
+    }
+
+    Write-Host ""
+    Write-Host "Done. Run 'remote status' to verify." -ForegroundColor Green
+}
+
 # --- desktop ---
 function Start-Desktop {
     $rd = Get-Command rustdesk -ErrorAction SilentlyContinue
@@ -156,6 +215,7 @@ switch ($Command) {
     "connect"  { Connect-Remote -TargetHost ($Args | Select-Object -First 1) }
     "status"   { Show-Status }
     "desktop"  { Start-Desktop }
+    "install"  { Install-Deps }
     "config" {
         Write-Host "Config: $ConfigFile"
         if (Test-Path $ConfigFile) {

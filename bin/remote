@@ -28,6 +28,7 @@ declare -A _CMD_MODULES=(
     [runner]="runner.sh"
     [r]="runner.sh"
     [setup]="detect.sh status.sh setup.sh"
+    [install]="install.sh"
     [update]=""
     [uninstall]=""
     [config]=""
@@ -84,6 +85,10 @@ case "$cmd" in
     setup)
         _load_cmd setup
         cmd_setup "$@"
+        ;;
+    install)
+        _load_cmd install
+        cmd_install "$@"
         ;;
     config|cfg)
         echo "配置文件: $CONFIG_ENV"
