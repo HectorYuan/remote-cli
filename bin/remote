@@ -13,32 +13,31 @@ source "$REMOTE_CLI_DIR/lib/config.sh"
 load_config
 
 # ─── 功能模块惰性加载 ──────────────────────────────────────────
-declare -A _CMD_MODULES=(
-    [connect]="detect.sh connect.sh"
-    [c]="detect.sh connect.sh"
-    [status]="detect.sh status.sh"
-    [st]="detect.sh status.sh"
-    [fix]="detect.sh fix.sh"
-    [doctor]="detect.sh fix.sh doctor.sh"
-    [forward]="detect.sh forward.sh"
-    [fwd]="detect.sh forward.sh"
-    [files]="detect.sh files.sh"
-    [desktop]="detect.sh desktop.sh"
-    [desk]="detect.sh desktop.sh"
-    [code]="detect.sh code.sh"
-    [runner]="runner.sh"
-    [r]="runner.sh"
-    [setup]="detect.sh status.sh setup.sh"
-    [install]="install.sh"
-    [update]="update.sh"
-    [uninstall]=""
-    [config]="config_cmd.sh"
-    [cfg]=""
-)
+# 兼容 bash 3.2（macOS 自带）：不用关联数组，用函数返回模块列表
+_cmd_modules() {
+    case "$1" in
+        connect|c)    echo "detect.sh connect.sh" ;;
+        status|st)    echo "detect.sh status.sh" ;;
+        fix)          echo "detect.sh fix.sh" ;;
+        doctor)       echo "detect.sh fix.sh doctor.sh" ;;
+        forward|fwd)  echo "detect.sh forward.sh" ;;
+        files|f)      echo "detect.sh files.sh" ;;
+        desktop|desk) echo "detect.sh desktop.sh" ;;
+        code)         echo "detect.sh code.sh" ;;
+        runner|r)     echo "runner.sh" ;;
+        setup)        echo "detect.sh status.sh setup.sh" ;;
+        install)      echo "install.sh" ;;
+        update)       echo "update.sh" ;;
+        config|cfg)   echo "config_cmd.sh" ;;
+        uninstall)    echo "uninstall.sh" ;;
+        *)            echo "" ;;
+    esac
+}
 
 _load_cmd() {
     local cmd="$1"
-    local modules="${_CMD_MODULES[$cmd]:-}"
+    local modules
+    modules=$(_cmd_modules "$cmd")
     for mod in $modules; do
         [[ " ${_LOADED_MODULES:-} " == *" $mod "* ]] && continue
         source "$REMOTE_CLI_DIR/lib/$mod"
