@@ -42,7 +42,11 @@ load_config() {
     #    如果变量未设置或为空字符串，则设置为默认值
     #    所以用户 export RUNNER_IP=xxx 时，:= 不会覆盖它 — 这正是我们想要的
 
-    # 4. CONFIG_VERSION 迁移检查
+    # 4. 展开 ~ 路径（bash source 不展开变量值中的 tilde）
+    SSH_KEY="${SSH_KEY/#\~/$HOME}"
+    RUNNER_KEY="${RUNNER_KEY/#\~/$HOME}"
+
+    # 5. CONFIG_VERSION 迁移检查
     if [[ "$CONFIG_VERSION" -lt "$CONFIG_VERSION_EXPECTED" ]]; then
         _migrate_config "$CONFIG_VERSION" "$CONFIG_VERSION_EXPECTED"
     fi

@@ -20,6 +20,7 @@ _cmd_modules() {
         status|st)    echo "detect.sh status.sh" ;;
         fix)          echo "detect.sh fix.sh" ;;
         doctor)       echo "detect.sh fix.sh doctor.sh" ;;
+        enroll)       echo "detect.sh runner.sh enroll.sh" ;;
         forward|fwd)  echo "detect.sh forward.sh" ;;
         files|f)      echo "detect.sh files.sh" ;;
         desktop|desk) echo "detect.sh desktop.sh" ;;
@@ -65,6 +66,10 @@ case "$cmd" in
     doctor)
         _load_cmd doctor
         cmd_doctor "$@"
+        ;;
+    enroll)
+        _load_cmd enroll
+        cmd_enroll "$@"
         ;;
     forward|fwd)
         _load_cmd forward

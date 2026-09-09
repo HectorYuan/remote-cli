@@ -5,9 +5,9 @@
 # ═══════════════════════════════════════════════════════════════════
 
 _runner_ssh() {
-    local host="${1:-$RUNNER_IP}" user="${2:-$RUNNER_USER}" key="${3:-$RUNNER_KEY}"
+    local host="${1:-$RUNNER_IP}" user="${2:-$RUNNER_USER}" key="${3:-$RUNNER_KEY}" cmd="${4:-}"
     [[ -z "$host" ]] && die "未配置 RUNNER_IP，请在 $CONFIG_ENV 中设置"
-    ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host"
+    ssh -i "$key" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host" "$cmd"
 }
 
 _runner_cmd() {
