@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.0 (2026-09-09)
+
+### 新功能
+- remote enroll: 一键设备接入（2 条命令替代 5 步手动操作）
+  - enroll/server.py: Runner 注册服务（Docker, 端口 8100）
+  - token 一次性/1 小时过期/128 位随机/公钥格式校验
+  - remote enroll create / join / sync / sync-install
+  - Windows remote.ps1 同步支持 enroll
+- Runner 上部署 enroll 服务容器 + 安全组放行 8100
+
+### Bug 修复
+- runner.sh: _runner_ssh 丢失第 4 参数（v0.3.2 起 runner 命令静默失效）
+- config.sh: load_config 展开 ~ 路径（RUNNER_KEY/SSH_KEY）
+- enroll: 兼容 Python JSON 带空格格式、ed25519 公钥长度校验
+
+### 文档
+- README.md: 全面更新（架构图/接入流程/安全设计/版本路线）
+- docs/GUIDE.md: enroll 章节 + 快速参考补全
+
 ## v0.3.1 (2026-09-07)
 
 ### Bug 修复

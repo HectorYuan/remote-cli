@@ -39,12 +39,48 @@ remote --help           # 查看所有命令
 ### 步骤 2：安装 remote-cli（其他设备）
 
 ```bash
-# Linux/macOS
-git clone <repo-url> ~/.local/remote-cli
-export PATH="$HOME/.local/remote-cli/bin:$PATH"
+# Linux/macOS/WSL
+curl -fksSL https://14.103.46.178/setup/install.sh | bash
 
-# 或直接下载
-curl -fsSL <repo-url>/setup/install.sh | bash
+# Windows PowerShell
+irm https://14.103.46.178/setup/install.ps1 | iex
+```
+
+### 步骤 2.5：一键接入（推荐）
+
+在工作站生成 token：
+
+```bash
+remote enroll create
+# 输出: remote enroll RC-xxxxxxxxxxxxxx
+```
+
+在新设备执行输出的命令：
+
+```bash
+remote enroll RC-xxxxxxxxxxxxxx
+# 自动完成: 拉取配置 → 生成 SSH 密钥 → 上传公钥 → 写本地配置
+```
+
+工作站接收公钥（推荐挂自动化，只需一次）：
+
+```bash
+remote enroll sync-install   # systemd timer 每分钟自动接收
+```
+
+约 1 分钟后新设备即可 `remote connect`。
+
+### 手动接入（备用）
+
+如果 enroll 不可用，手动方式：
+
+```bash
+# 1. 新设备生成密钥
+ssh-keygen -t ed25519
+
+# 2. 把公钥内容发给工作站管理员，追加到 ~/.ssh/authorized_keys
+
+# 3. 手动写配置 ~/.config/remote-cli/config.env
 ```
 
 ### 步骤 3：选择访问方式
@@ -246,18 +282,31 @@ remote fix                    # 交互式修复
 |---|---|
 | `remote status` | 健康检查 |
 | `remote status --json` | JSON 格式状态 |
+| `remote status --watch 5` | 定时刷新（5 秒） |
 | `remote connect` | 自动连接 |
 | `remote connect --dry-run` | 只显示路径 |
+| `remote connect --mosh / --ssh` | 强制指定协议 |
 | `remote desktop` | RustDesk |
 | `remote code` | Web IDE URL |
 | `remote files push <file>` | 上传文件 |
 | `remote files pull <file>` | 下载文件 |
 | `remote files list` | 远程目录 |
 | `remote forward <port>` | 端口转发 |
+| `remote forward list / kill <port>` | 隧道管理 |
 | `remote fix` | 诊断+修复 |
 | `remote fix --dry-run` | 只诊断 |
+| `remote fix --auto` | 非交互式修复 |
+| `remote doctor` | 深度诊断（8 项检查） |
+| `remote doctor --json / --fix` | JSON / 联动修复 |
+| `remote enroll create` | 生成新设备接入 token |
+| `remote enroll <token>` | 新设备一键接入 |
+| `remote enroll sync` | 工作站接收公钥 |
+| `remote enroll sync-install` | 挂 systemd timer 自动接收 |
+| `remote install` | 安装缺失依赖 |
+| `remote install --list` | 依赖状态列表 |
 | `remote runner status` | Runner 状态 |
 | `remote runner restart` | Runner 重启 |
-| `remote config` | 查看配置 |
+| `remote runner logs <svc>` | 容器日志 |
+| `remote config show / set / edit` | 配置管理 |
 | `remote update` | 自更新 |
 | `remote --version` | 版本号 |
