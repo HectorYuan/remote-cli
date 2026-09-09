@@ -6,9 +6,9 @@
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
 
-REMOTE_CLI_VERSION="$(curl -fksSL "${REPO_URL:-https://14.103.46.178}/VERSION" 2>/dev/null || cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "dev")"
+REMOTE_CLI_VERSION="$(curl -fsSL "${REPO_URL:-http://14.103.46.178}/VERSION" 2>/dev/null || cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "dev")"
 INSTALL_DIR="${REMOTE_CLI_DIR:-$HOME/.local/remote-cli}"
-REPO_URL="${REMOTE_CLI_REPO:-https://14.103.46.178}"
+REPO_URL="${REMOTE_CLI_REPO:-http://14.103.46.178}"
 
 # ─── 日志 ──────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'

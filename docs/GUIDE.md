@@ -40,10 +40,10 @@ remote --help           # 查看所有命令
 
 ```bash
 # Linux/macOS/WSL
-curl -fksSL https://14.103.46.178/setup/install.sh | bash
+curl -fsSL http://14.103.46.178/setup/install.sh | bash
 
 # Windows PowerShell
-irm https://14.103.46.178/setup/install.ps1 | iex
+irm http://14.103.46.178/setup/install.ps1 | iex
 ```
 
 ### 步骤 2.5：一键接入（推荐）

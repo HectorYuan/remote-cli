@@ -40,7 +40,7 @@
 
 ```bash
 # 1. 安装 remote-cli 本体
-curl -fksSL https://14.103.46.178/setup/install.sh | bash
+curl -fsSL http://14.103.46.178/setup/install.sh | bash
 
 # 2. 安装所有依赖（ssh/mosh/tailscale/rustdesk/zellij，已装的自动跳过）
 remote install
@@ -74,7 +74,7 @@ remote enroll sync-install   # systemd timer 每分钟自动接收
 
 ```powershell
 # 安装
-irm https://14.103.46.178/setup/install.ps1 | iex
+irm http://14.103.46.178/setup/install.ps1 | iex
 
 # 接入
 remote enroll RC-xxxxxxxxxxxxxx
